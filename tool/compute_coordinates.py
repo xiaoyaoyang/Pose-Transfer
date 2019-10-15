@@ -10,7 +10,7 @@ from skimage.io import imread
 from skimage.transform import resize
 from scipy.ndimage import gaussian_filter
 
-from cmd import args
+from cmdd import args
 
 
 args = args()
