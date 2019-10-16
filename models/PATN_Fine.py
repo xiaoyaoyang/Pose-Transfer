@@ -73,7 +73,7 @@ class TransferModel(BaseModel):
             self.fake_PB_pool = ImagePool(opt.pool_size)
             # define loss functions
             self.criterionGAN = networks.GANLoss(use_lsgan=not opt.no_lsgan, tensor=self.Tensor)
-            self.criterionL1 = SegmentsSeperateStyleLoss(opt.nsegments, opt.lambda_A, opt.lambda_B, opt.lambda_style, opt.perceptual_layers, self.gpu_ids[0])
+            self.criterionL1 = SegmentsSeperateStyleLoss(opt.nsegments, opt.lambda_A, opt.lambda_B, opt.lambda_style, opt.perceptual_layers, self.gpu_ids)
 
             # initialize optimizers
             self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))

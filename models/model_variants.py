@@ -216,7 +216,10 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
     #     return (cond * x_1) + ((1-cond) * x_2)
 
     batch, chanel, height, width = rawFea.size()
-    maskNewFea = torch.zeros(rawFea.size()).cuda()
+    if torch.cuda.is_available():
+        maskNewFea = torch.zeros(rawFea.size()).cuda()
+    else:
+        maskNewFea = torch.zeros(rawFea.size())
 
     srcBox = srcBox + 0.5
     srcBox = srcBox.int()
@@ -231,29 +234,34 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
             sx1, sy1, sx2, sy2 = srcBox[ind][part]
             dx1, dy1, dx2, dy2 = dstBox[ind][part]
 
-            if sx1==0 and sy1==0 and sx2==0 and sy2==0:
+            if sx1 == 0 and sy1==0 and sx2==0 and sy2==0:
                 continue
-            if dx1==0 and dy1==0 and dx2==0 and dy2==0:
+            if dx1==0 and dy1 == 0 and dx2==0 and dy2==0:
                 continue
 
             srcH, srcW = sy2-sy1, sx2-sx1
 
-            maskRawFea = torch.zeros(1, chanel, srcH, srcW).cuda()
+            maskRawFea = torch.zeros(1, chanel, srcH, srcW) #use cpu
             maskRawFea[:, :, :, :] = rawFea[ind, :, sy1:sy2, sx1:sx2]
 
-            maskRawFea = Variable(maskRawFea, requires_grad=False).cuda()
+            maskRawFea = Variable(maskRawFea, requires_grad=False) #use cpu add .cuda() if gpu
 
             dstH, dstW = dy2-dy1, dx2-dx1
             grid = torch.zeros(1, dstH, dstW, 2) #batch=1 in this case.
+
             # x cord.
-            if dstW > 1: 
-                x_map = torch.range(-1, 1, 2/(dstW-1)).resize_(1, 1, dstW).repeat(1, dstH, 1)
+            if dstW > 1:
+                print(dstW)
+                x_map = torch.ones(1, dstH, 1)
+                # x_map = torch.range(-1, 1, 2/(dstW-1)).resize_(1, 1, dstW).repeat(1, dstH, 1)
             else:
                 x_map = torch.ones(1, dstH, 1)
 
             # y cord.
             if dstH > 1:
-                y_map = torch.range(-1, 1, 2/(dstH-1)).resize_(1, dstH, 1).repeat(1, 1, dstW)
+                print(dstH)
+                y_map = torch.ones(1, 1, dstW)
+                # y_map = torch.range(-1, 1, 2/(dstH-1)).resize_(1, dstH, 1).repeat(1, 1, dstW)
             else:
                 y_map = torch.ones(1, 1, dstW)
 
@@ -261,14 +269,14 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
             grid[:, :, :, 0] = x_map
             grid[:, :, :, 1] = y_map
 
-            grid = Variable(grid, requires_grad=False).cuda()
+            grid = Variable(grid, requires_grad=False) #use cpu add .cuda() if gpu
 
             _newFea = F.grid_sample(maskRawFea, grid).data
 
             maskNewFea[ind, :, dy1:dy2, dx1:dx2] = torch.max(_newFea, maskNewFea[ind, :, dy1:dy2, dx1:dx2])
 
 
-    maskNewFea = Variable(maskNewFea).cuda()
+    maskNewFea = Variable(maskNewFea) #use cpu add .cuda() if gpu
 
     return maskNewFea
 

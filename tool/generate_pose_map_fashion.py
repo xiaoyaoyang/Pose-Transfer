@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd 
 import json
-import os 
+import os
+import argparse
 
 MISSING_VALUE = -1
 # fix PATH
@@ -24,12 +25,15 @@ def cords_to_map(cords, img_size, sigma=6):
         # result[..., i] = np.where(((yy - point[0]) ** 2 + (xx - point[1]) ** 2) < (sigma ** 2), 1, 0)
     return result
 
-def compute_pose(image_dir, annotations_file, savePath, sigma):
+def compute_pose(image_dir, annotations_file, savePath, sigma=6, limits=10):
+    print(f"Only calculate {limits} results")
     annotations_file = pd.read_csv(annotations_file, sep=':')
     annotations_file = annotations_file.set_index('name')
     image_size = (256, 176)
     cnt = len(annotations_file)
     for i in range(cnt):
+        if i>limits:
+            break
         print('processing %d / %d ...' %(i, cnt))
         row = annotations_file.iloc[i]
         name = row.name
@@ -39,8 +43,17 @@ def compute_pose(image_dir, annotations_file, savePath, sigma):
         pose = cords_to_map(kp_array, image_size, sigma)
         np.save(file_name, pose)
         # input()
-  
-compute_pose(img_dir, annotations_file, save_path)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-l', '--limits', dest='limits',
+        default=10, type=int,
+        help="Number of records to calculate"
+    )
+    args = parser.parse_args()
+    compute_pose(img_dir, annotations_file, save_path, **vars(args))
 
 
 

@@ -7,7 +7,7 @@ import numpy as np
 import torch.nn.functional as F
 import torchvision.models as models
 
-from roi_align.roi_align import RoIAlign
+from torchvision.ops import RoIAlign
 
 def to_varabile(arr, requires_grad=False, is_cuda=True):
     tensor = torch.from_numpy(arr)
@@ -38,7 +38,8 @@ class SegmentsSeperateStyleLoss(nn.Module):
                 [[16, 16], [16, 7], [16, 7], [32, 32], [32, 7], [32, 7], [16, 16]]):
         super(SegmentsSeperateStyleLoss, self).__init__()
         self.nsegments = nsegments
-        self.align_layer_lists = nn.ModuleList([RoIAlign(x[0], x[1], transform_fpcoor=True) for x in roi_output_size])
+        # Use RoIAlign from torchvision instead
+        self.align_layer_lists = nn.ModuleList([RoIAlign((x[0],x[1]), 1, -1) for x in roi_output_size])
         # print(self.align_layer_lists)
         self.lambda_L1 = lambda_L1
         self.lambda_perceptual = lambda_perceptual
@@ -53,7 +54,10 @@ class SegmentsSeperateStyleLoss(nn.Module):
             self.vgg_submodel.add_module(str(i),layer)
             if i == perceptual_layers:
                 break
-        self.vgg_submodel = self.vgg_submodel.cuda(gpu_ids)
+
+        # self.vgg_submodel = self.vgg_submodel.cuda(gpu_ids)
+        print(self.gpu_ids)
+        self.vgg_submodel = self.vgg_submodel.cpu()
         # print('####perceptual sub model defination!####')
         # print(self.vgg_submodel)
 
@@ -83,7 +87,8 @@ class SegmentsSeperateStyleLoss(nn.Module):
         mean[2] = 0.406
         mean = Variable(mean)
         mean = mean.resize(1, 3, 1, 1)
-        mean = mean.cuda(self.gpu_ids)
+        # mean = mean.cuda(self.gpu_ids)
+        mean = mean.cpu()
 
         std = torch.FloatTensor(3)
         std[0] = 0.229
@@ -91,7 +96,8 @@ class SegmentsSeperateStyleLoss(nn.Module):
         std[2] = 0.225
         std = Variable(std)
         std = std.resize(1, 3, 1, 1)
-        std = std.cuda(self.gpu_ids)
+        # std = std.cuda(self.gpu_ids)
+        std = std.cpu()
 
         fake_p2_norm = (inputs + 1)/2 # [-1, 1] => [0, 1]
         fake_p2_norm = (fake_p2_norm - mean)/std
@@ -113,11 +119,14 @@ class SegmentsSeperateStyleLoss(nn.Module):
                 else:
                     loss_style += 0
                 continue
-            boxes = to_varabile(np.asarray(boxes_data[i],dtype=np.float32), requires_grad=False, is_cuda=True)
-            box_index = to_varabile(np.asarray(box_index_data[i],dtype=np.int32), requires_grad=False, is_cuda=True)
+            boxes = to_varabile(np.asarray(boxes_data[i],dtype=np.float32), requires_grad=False, is_cuda=False)
+            box_index = to_varabile(np.asarray(box_index_data[i],dtype=np.int32), requires_grad=False, is_cuda=False)
 
-            fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, boxes, box_index)
-            input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, boxes, box_index)
+            print(boxes)
+            print(box_index)
+            print(rois[i])
+            fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, rois[i])
+            input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, rois[i])
             if i == 0:
                 loss_style = GramMSELoss()(fake_perceptual_segments, input_perceptual_segments_no_grad) * self.lambda_style
             else:

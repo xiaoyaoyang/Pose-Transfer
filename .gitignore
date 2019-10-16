@@ -1,5 +1,14 @@
 
 
+*.npy
+*.csv
+*.h5
+*.pth
+*.whl
+*.JPG
+*.jpg
+.idea/*
+
 #Notebook Ignore
 #MANIFEST
 build
