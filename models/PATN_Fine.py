@@ -157,7 +157,6 @@ class TransferModel(BaseModel):
 
 
     def backward_unpaired_G(self):
-
         if self.opt.with_D_PB:
             pred_fake_PB = self.netD_PB(torch.cat((self.fake_p2, self.input_BP2), 1))
             self.loss_G_GAN_PB = self.criterionGAN(pred_fake_PB, True)

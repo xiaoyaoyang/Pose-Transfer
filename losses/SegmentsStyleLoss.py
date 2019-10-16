@@ -8,6 +8,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 
 from torchvision.ops import RoIAlign
+from roi_align.roi_align import RoIAlign
 
 def to_varabile(arr, requires_grad=False, is_cuda=True):
     tensor = torch.from_numpy(arr)
@@ -38,8 +39,13 @@ class SegmentsSeperateStyleLoss(nn.Module):
                 [[16, 16], [16, 7], [16, 7], [32, 32], [32, 7], [32, 7], [16, 16]]):
         super(SegmentsSeperateStyleLoss, self).__init__()
         self.nsegments = nsegments
+
+        self.align_layer_lists = nn.ModuleList([RoIAlign(x[0], x[1], transform_fpcoor=True) for x in roi_output_size])
+
         # Use RoIAlign from torchvision instead
-        self.align_layer_lists = nn.ModuleList([RoIAlign((x[0],x[1]), 1, -1) for x in roi_output_size])
+        # self.align_layer_lists = nn.ModuleList([RoIAlign((x[0],x[1]), 1, -1) for x in roi_output_size])
+
+
         # print(self.align_layer_lists)
         self.lambda_L1 = lambda_L1
         self.lambda_perceptual = lambda_perceptual
@@ -119,14 +125,17 @@ class SegmentsSeperateStyleLoss(nn.Module):
                 else:
                     loss_style += 0
                 continue
-            boxes = to_varabile(np.asarray(boxes_data[i],dtype=np.float32), requires_grad=False, is_cuda=False)
-            box_index = to_varabile(np.asarray(box_index_data[i],dtype=np.int32), requires_grad=False, is_cuda=False)
+            boxes = to_varabile(np.asarray(boxes_data[i],dtype=np.float32), requires_grad=False, is_cuda=False)  # list of 4 (1,4) arrays
+            box_index = to_varabile(np.asarray(box_index_data[i],dtype=np.int32), requires_grad=False, is_cuda=False) # (1,4)
 
-            print(boxes)
-            print(box_index)
-            print(rois[i])
-            fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, rois[i])
-            input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, rois[i])
+            breakpoint()
+
+
+            fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, boxes, box_index)
+            input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, boxes, box_index)
+
+            # fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, rois)
+            # input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, rois[:, i, :])
             if i == 0:
                 loss_style = GramMSELoss()(fake_perceptual_segments, input_perceptual_segments_no_grad) * self.lambda_style
             else:

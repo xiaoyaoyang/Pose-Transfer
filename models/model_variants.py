@@ -5,7 +5,6 @@ import functools
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-
 class ResnetBlock(nn.Module):
     def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
         super(ResnetBlock, self).__init__()
@@ -46,6 +45,7 @@ class ResnetBlock(nn.Module):
     def forward(self, x):
         out = x + self.conv_block(x)
         return out
+
 
 class PATBlock(nn.Module):
     def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias, cated_stream2=False):
@@ -209,10 +209,11 @@ class PATNetwork(nn.Module):
             return self.model(input)
 
 
+
 def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
     # bbox:[x1, y1, x2, y2]
     # def where(cond, x_1, x_2):
-    #     cond = cond.float()    
+    #     cond = cond.float()
     #     return (cond * x_1) + ((1-cond) * x_2)
 
     batch, chanel, height, width = rawFea.size()
@@ -228,7 +229,7 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
     dstBox = dstBox.int()
 
     for ind in range(batch):
-        # process each segment seperately 
+        # process each segment seperately
         for part in range(srcBox[ind].shape[0]):
 
             sx1, sy1, sx2, sy2 = srcBox[ind][part]
@@ -251,17 +252,13 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
 
             # x cord.
             if dstW > 1:
-                print(dstW)
-                x_map = torch.ones(1, dstH, 1)
-                # x_map = torch.range(-1, 1, 2/(dstW-1)).resize_(1, 1, dstW).repeat(1, dstH, 1)
+                x_map = torch.arange(-1, 1, 2.0/(dstW.float()-1)).resize_(1, 1, dstW).repeat(1, dstH, 1)
             else:
                 x_map = torch.ones(1, dstH, 1)
 
             # y cord.
             if dstH > 1:
-                print(dstH)
-                y_map = torch.ones(1, 1, dstW)
-                # y_map = torch.range(-1, 1, 2/(dstH-1)).resize_(1, dstH, 1).repeat(1, 1, dstW)
+                y_map = torch.arange(-1, 1, 2.0/(dstH.float()-1)).resize_(1, dstH, 1).repeat(1, 1, dstW)
             else:
                 y_map = torch.ones(1, 1, dstW)
 
@@ -280,6 +277,8 @@ def gen_enc_fea_all_parts_cuda(rawFea, srcBox, dstBox):
 
     return maskNewFea
 
+
+
 class PATModel_Fine(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, gpu_ids=[], padding_type='reflect', n_downsampling=2):
         assert(n_blocks >= 0 and type(input_nc) == list)
@@ -295,7 +294,7 @@ class PATModel_Fine(nn.Module):
             use_bias = norm_layer == nn.InstanceNorm2d
 
         # down_sample
-        model_stream1_down = [ 
+        model_stream1_down = [
                 nn.Sequential(
                     nn.ReflectionPad2d(3),
                     nn.Conv2d(self.input_nc_s1, ngf, kernel_size=7, padding=0,
@@ -313,7 +312,7 @@ class PATModel_Fine(nn.Module):
         # n_downsampling = 2
         for i in range(n_downsampling):
             mult = 2**i
-            model_stream1_down += [ 
+            model_stream1_down += [
                     nn.Sequential(
                             nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3,
                                 stride=2, padding=1, bias=use_bias),
@@ -389,7 +388,7 @@ class PATModel_Fine(nn.Module):
         # concat and upsample.
         for i, submodel in enumerate(self.stream1_up):
             enc_fea = down_results[enc_len -1 -i]
-            if i==0: #3x3 
+            if i==0: #3x3
                 srcBox = torso_bbox_src/4
                 dstBox = torso_bbox_dst/4
                 enc_fea = gen_enc_fea_all_parts_cuda(enc_fea.data, srcBox.data, dstBox.data)
@@ -410,8 +409,6 @@ class PATModel_Fine(nn.Module):
         return x1
 
 
-
-
 class PATNetwork_Fine(nn.Module):
     def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, gpu_ids=[], padding_type='reflect', n_downsampling=2):
         super(PATNetwork_Fine, self).__init__()
@@ -419,6 +416,7 @@ class PATNetwork_Fine(nn.Module):
         self.gpu_ids = gpu_ids
         self.model = PATModel_Fine(input_nc, output_nc, ngf, norm_layer, use_dropout, n_blocks, gpu_ids, padding_type, n_downsampling=n_downsampling)
 
+    # Overwrite the forward in module since inherit.
     def forward(self, input):
         # return self.model(input)
         if self.gpu_ids and isinstance(input[0].data, torch.cuda.FloatTensor):
