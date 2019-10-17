@@ -187,9 +187,9 @@ class TransferModel(BaseModel):
         pair_loss = pair_L1loss + pair_GANloss
 
         pair_loss.backward()
-
-        self.pair_L1loss = pair_L1loss.data[0]
-        self.pair_GANloss = pair_GANloss.data[0]
+        # import pdb; pdb.set_trace()
+        self.pair_L1loss = pair_L1loss.item()
+        self.pair_GANloss = pair_GANloss.item()
 
 
     def backward_D_basic(self, netD, real, fake):
@@ -210,14 +210,14 @@ class TransferModel(BaseModel):
         real_PB = torch.cat((self.input_P2, self.input_BP2), 1)
         fake_PB = self.fake_PB_pool.query( torch.cat((self.fake_p2, self.input_BP2), 1).data )
         loss_D_PB = self.backward_D_basic(self.netD_PB, real_PB, fake_PB)
-        self.loss_D_PB = loss_D_PB.data[0]
+        self.loss_D_PB = loss_D_PB.item()
 
     # D: take(P, P') as input
     def backward_D_PP(self):
         real_PP = torch.cat((self.input_P2, self.input_P1), 1)
         fake_PP = self.fake_PP_pool.query( torch.cat((self.fake_p2, self.input_P1), 1).data )
         loss_D_PP = self.backward_D_basic(self.netD_PP, real_PP, fake_PP)
-        self.loss_D_PP = loss_D_PP.data[0]
+        self.loss_D_PP = loss_D_PP.item()
 
 
     def optimize_parameters(self):

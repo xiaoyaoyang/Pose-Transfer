@@ -21,4 +21,4 @@ run-local:
 	docker run -it \
 	    $(docker_local_args) \
 		-p ${PORT_HOST}:${PORT_HOST} \
-		${NAME}:${TAG}
+		${NAME}:${TAG} bash

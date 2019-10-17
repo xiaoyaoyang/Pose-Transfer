@@ -128,8 +128,6 @@ class SegmentsSeperateStyleLoss(nn.Module):
             boxes = to_varabile(np.asarray(boxes_data[i],dtype=np.float32), requires_grad=False, is_cuda=False)  # list of 4 (1,4) arrays
             box_index = to_varabile(np.asarray(box_index_data[i],dtype=np.int32), requires_grad=False, is_cuda=False) # (1,4)
 
-            breakpoint()
-
 
             fake_perceptual_segments = self.align_layer_lists[i](fake_p2_norm_perceptual, boxes, box_index)
             input_perceptual_segments_no_grad = self.align_layer_lists[i](input_p2_norm_perceptual_no_grad, boxes, box_index)

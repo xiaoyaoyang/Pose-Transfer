@@ -1,0 +1,10 @@
+*.npy
+*.csv
+*.h5
+*.pth
+*.whl
+*.JPG
+*.jpg
+fashion/
+fashion_data/
+
