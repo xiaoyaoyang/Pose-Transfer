@@ -4,19 +4,25 @@ import numpy as np
 
 from keras.models import load_model
 import skimage.transform as st
-import pandas as pd
+
 from tqdm import tqdm
 from skimage.io import imread
 from skimage.transform import resize
 from scipy.ndimage import gaussian_filter
 
 from cmdd import args
+from pathlib import Path
 
-
+curr_dir = Path(__file__).parent
+root_dir = curr_dir.parent
+isTrain = 0
+IMG_EXTENSIONS = [
+'.jpg', '.JPG', '.jpeg', '.JPEG',
+'.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
+]
 args = args()
-
-model = load_model(args.pose_estimator)
-
+# model = load_model(args.pose_estimator)
+model = load_model(f'{root_dir}/pose_estimator.h5')
 
 mapIdx = [[31,32], [39,40], [33,34], [35,36], [41,42], [43,44], [19,20], [21,22],
           [23,24], [25,26], [27,28], [29,30], [47,48], [49,50], [53,54], [51,52],
@@ -25,6 +31,21 @@ mapIdx = [[31,32], [39,40], [33,34], [35,36], [41,42], [43,44], [19,20], [21,22]
 limbSeq = [[2,3], [2,6], [3,4], [4,5], [6,7], [7,8], [2,9], [9,10],
            [10,11], [2,12], [12,13], [13,14], [2,1], [1,15], [15,17],
            [1,16], [16,18], [3,17], [6,18]]
+
+def is_image_file(filename):
+    return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
+if isTrain == 1:
+    input_folder = f'{root_dir}/fashion_data/train/'
+    output_path = f'{root_dir}/fashion_data/fasion-resize-annotation-train.csv'
+else:
+    input_folder = f'{root_dir}/fashion_data/test/'
+    output_path = f'{root_dir}/fashion_data/fasion-resize-annotation-test.csv'
+
+#input_folder = './results/market_PATN/test_latest/images_crop/'
+#output_path = './results/market_PATN/test_latest/pckh.csv'
+
+
 
 
 def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
@@ -45,7 +66,7 @@ def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
         map_down[:,:-1] = map[:,1:]
 
         peaks_binary = np.logical_and.reduce((map>=map_left, map>=map_right, map>=map_up, map>=map_down, map > th1))
-        peaks = zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0]) # note reverse
+        peaks = list(zip(np.nonzero(peaks_binary)[1], np.nonzero(peaks_binary)[0])) # note reverse
 
         peaks_with_score = [x + (map_ori[x[1],x[0]],) for x in peaks]
         id = range(peak_counter, peak_counter + len(peaks))
@@ -73,8 +94,8 @@ def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
                     norm = np.sqrt(vec[0]*vec[0] + vec[1]*vec[1])
                     vec = np.divide(vec, norm)
 
-                    startend = zip(np.linspace(candA[i][0], candB[j][0], num=mid_num),
-                                   np.linspace(candA[i][1], candB[j][1], num=mid_num))
+                    startend = list(zip(np.linspace(candA[i][0], candB[j][0], num=mid_num),
+                                   np.linspace(candA[i][1], candB[j][1], num=mid_num)))
 
                     vec_x = np.array([score_mid[int(round(startend[I][1])), int(round(startend[I][0])), 0]
                                       for I in range(len(startend))])
@@ -129,7 +150,7 @@ def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
                         subset[j][-2] += candidate[partBs[i].astype(int), 2] + connection_all[k][i][2]
                 elif found == 2: # if found 2 and disjoint, merge them
                     j1, j2 = subset_idx
-                    print "found = 2"
+                    print("found = 2")
                     # print("found = 2")
                     membership = ((subset[j1]>=0).astype(int) + (subset[j2]>=0).astype(int))[:-2]
                     if len(np.nonzero(membership == 2)[0]) == 0: #merge
@@ -173,56 +194,48 @@ def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
             cordinates.append([X, Y])
     return np.array(cordinates).astype(int)
 
-# input_folder = './results/fashion_PATN/test_latest/images_crop/'
-# output_path = './results/fashion_PATN/test_latest/pckh.csv'
 
-input_folder = './results/market_PATN/test_latest/images_crop/'
-output_path = './results/market_PATN/test_latest/pckh.csv'
-
-
-img_list = os.listdir(input_folder)
-
-threshold = 0.1
-boxsize = 368
-scale_search = [0.5, 1, 1.5, 2]
-
-if os.path.exists(output_path):
-    processed_names = set(pd.read_csv(output_path, sep=':')['name'])
-    result_file = open(output_path, 'a')
-else:
+if __name__ == "__main__":
+    img_list = os.listdir(input_folder)
+    threshold = 0.1
+    boxsize = 368
+    scale_search = [0.5, 1, 1.5, 2]
     result_file = open(output_path, 'w')
     processed_names = set()
-    print >> result_file, 'name:keypoints_y:keypoints_x'
+    result_file.write('name:keypoints_y:keypoints_x\n')
 
-# for image_name in tqdm(os.listdir(input_folder)):
-for image_name in tqdm(img_list):
-    if image_name in processed_names:
-        continue
+    # for image_name in tqdm(os.listdir(input_folder)):
+    for image_name in tqdm(img_list):
+        print(image_name)
+        if not is_image_file(image_name):
+            continue
+        if image_name in processed_names:
+            continue
 
-    oriImg = imread(os.path.join(input_folder, image_name))[:, :, ::-1]  # B,G,R order
+        oriImg = imread(os.path.join(input_folder, image_name))[:, :, ::-1]  # B,G,R order
 
-    multiplier = [x * boxsize / oriImg.shape[0] for x in scale_search]
+        multiplier = [x * boxsize / oriImg.shape[0] for x in scale_search]
 
-    heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 19))
-    paf_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 38))
+        heatmap_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 19))
+        paf_avg = np.zeros((oriImg.shape[0], oriImg.shape[1], 38))
 
-    for m in range(len(multiplier)):
-        scale = multiplier[m]
+        for m in range(len(multiplier)):
+            scale = multiplier[m]
 
-        new_size = (np.array(oriImg.shape[:2]) * scale).astype(np.int32)
-        imageToTest = resize(oriImg, new_size, order=3, preserve_range=True)
-        imageToTest_padded = imageToTest[np.newaxis, :, :, :]/255 - 0.5
+            new_size = (np.array(oriImg.shape[:2]) * scale).astype(np.int32)
+            imageToTest = resize(oriImg, new_size, order=3, preserve_range=True)
+            imageToTest_padded = imageToTest[np.newaxis, :, :, :]/255 - 0.5
 
-        output1, output2 = model.predict(imageToTest_padded)
+            output1, output2 = model.predict(imageToTest_padded)
 
-        heatmap = st.resize(output2[0], oriImg.shape[:2], preserve_range=True, order=1)
-        paf = st.resize(output1[0], oriImg.shape[:2], preserve_range=True, order=1)
-        heatmap_avg += heatmap
-        paf_avg += paf
+            heatmap = st.resize(output2[0], oriImg.shape[:2], preserve_range=True, order=1)
+            paf = st.resize(output1[0], oriImg.shape[:2], preserve_range=True, order=1)
+            heatmap_avg += heatmap
+            paf_avg += paf
 
-    heatmap_avg /= len(multiplier)
+        heatmap_avg /= len(multiplier)
 
-    pose_cords = compute_cordinates(heatmap_avg, paf_avg)
+        pose_cords = compute_cordinates(heatmap_avg, paf_avg)
 
-    print >> result_file, "%s: %s: %s" % (image_name, str(list(pose_cords[:, 0])), str(list(pose_cords[:, 1])))
-    result_file.flush()
+        result_file.write("%s: %s: %s\n" % (image_name, str(list(pose_cords[:, 0])), str(list(pose_cords[:, 1]))))
+        result_file.flush()

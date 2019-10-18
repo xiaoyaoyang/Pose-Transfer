@@ -53,7 +53,7 @@ def make_dataset(dir):
                 path_names[4] = path_names[4].split('_')[0] + "_" + "".join(path_names[4].split('_')[1:])
                 path_names = "".join(path_names)
     #             new_path = os.path.join(root, path_names)
-
+                print(path_names)
                 img = Image.open(path)
                 imgcrop = img.crop((40, 0, 216, 256))
                 if path_names in train_images:

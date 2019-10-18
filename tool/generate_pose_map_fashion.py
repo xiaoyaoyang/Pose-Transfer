@@ -4,11 +4,6 @@ import json
 import os
 import argparse
 
-MISSING_VALUE = -1
-# fix PATH
-img_dir  = 'fashion_data' #raw image path
-annotations_file = 'fashion_data/fasion-resize-annotation-train.csv' #pose annotation path
-save_path = 'fashion_data/trainK' #path to store pose maps
 
 def load_pose_cords_from_strings(y_str, x_str):
     y_cords = json.loads(y_str)
@@ -46,6 +41,18 @@ def compute_pose(image_dir, annotations_file, savePath, sigma=6, limits=10):
 
 
 if __name__ == '__main__':
+    MISSING_VALUE = -1
+    # fix PATH
+    img_dir  = 'fashion_data' #raw image path
+    isTrain =0
+    if isTrain ==1:
+        annotations_file = 'fashion_data/fasion-resize-annotation-train.csv' #pose annotation path
+        save_path = 'fashion_data/trainK' #path to store pose maps
+    else:
+        annotations_file = 'fashion_data/fasion-resize-annotation-test.csv' #pose annotation path
+        save_path = 'fashion_data/testK' #path to store pose maps
+
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-l', '--limits', dest='limits',

@@ -29,6 +29,7 @@ def check_keypoints_present(kp, kp_names):
 def filter_not_valid(df_keypoints):
     def check_valid(x):
         kp_array = pose_utils.load_pose_cords_from_strings(x['keypoints_y'], x['keypoints_x'])
+        print(kp_array)
         distractor = x['name'].startswith('-1') or x['name'].startswith('0000')
         return pose_check_valid(kp_array) and not distractor
     return df_keypoints[df_keypoints.apply(check_valid, axis=1)].copy()
@@ -36,10 +37,11 @@ def filter_not_valid(df_keypoints):
 
 def make_pairs(df):
     persons = df.apply(lambda x: '_'.join(x['name'].split('_')[0:1]), axis=1)
+    print(persons)
     df['person'] = persons
     fr, to = [], []
     for person in pd.unique(persons):
-        pairs = zip(*list(permutations(df[df['person'] == person]['name'], 2)))
+        pairs = list(zip(*list(permutations(df[df['person'] == person]['name'], 2))))
         if len(pairs) != 0:
             fr += list(pairs[0])
             to += list(pairs[1])
@@ -50,26 +52,31 @@ def make_pairs(df):
 
 
 if __name__ == "__main__":
-    images_for_test = 12000
+    images_for_test = 10
+    isTrain = 0
+    #annotations_file_train = './market_data/market-annotation-test.csv'
+    #pairs_file_train = './market_data/example_market-pairs-train.csv'
 
-    annotations_file_train = './market_data/market-annotation-test.csv'
-    pairs_file_train = './market_data/example_market-pairs-train.csv'
+    #df_keypoints = pd.read_csv(annotations_file_train, sep=':')
+    #df = filter_not_valid(df_keypoints)
+    #print ('Compute pair dataset for train...')
+    #pairs_df_train = make_pairs(df)
+    #print ('Number of pairs: %s' % len(pairs_df_train))
+    #pairs_df_train.to_csv(pairs_file_train, index=False)
 
-    df_keypoints = pd.read_csv(annotations_file_train, sep=':')
-    df = filter_not_valid(df_keypoints)
-    print ('Compute pair dataset for train...')
-    pairs_df_train = make_pairs(df)
-    print ('Number of pairs: %s' % len(pairs_df_train))
-    pairs_df_train.to_csv(pairs_file_train, index=False)
-
-    annotations_file_test= './market_data/market-annotation-test.csv'
-    pairs_file_test = './market_data/example_market-pairs-test.csv'
+    if isTrain == 1:
+        annotations_file_train = './fashion_data/fasion-resize-annotation-train.csv'
+        pairs_file_train = './fashion_data/fasion-resize-pairs-train.csv'
+    else:
+        annotations_file_train = './fashion_data/fasion-resize-annotation-test.csv'
+        pairs_file_train = './fashion_data/fasion-resize-pairs-test.csv'
 
     print ('Compute pair dataset for test...')
-    df_keypoints = pd.read_csv(annotations_file_test, sep=':')
+    df_keypoints = pd.read_csv(annotations_file_train, sep=':')
     df = filter_not_valid(df_keypoints)
+    print(df)
     pairs_df_test = make_pairs(df)
     pairs_df_test = pairs_df_test.sample(n=min(images_for_test, pairs_df_test.shape[0]), replace=False, random_state=0)
     print ('Number of pairs: %s' % len(pairs_df_test))
-    pairs_df_test.to_csv(pairs_file_test, index=False)
+    pairs_df_test.to_csv(pairs_file_train, index=False)
 
